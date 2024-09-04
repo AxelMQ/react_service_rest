@@ -1,0 +1,75 @@
+/* Contenedor principal del formulario */
+.register-form-container {
+    max-width: 500px;
+    margin: auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Estilo del título */
+  .register-form-container h2 {
+    text-align: center;
+    color: #333;
+  }
+  
+  /* Estilo del botón de navegación */
+  .register-form-container button {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background-color: #61dafb;
+    border: none;
+    color: white;
+    cursor: pointer;
+    margin-bottom: 20px;
+    border-radius: 4px;
+  }
+  
+  .register-form-container button:hover {
+    background-color: #21a1f1;
+  }
+  
+  /* Estilo del formulario */
+  .register-form-container form {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Estilo de los campos del formulario */
+  .register-form-container input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+  
+  .register-form-container label {
+    margin-bottom: 5px;
+    display: block;
+  }
+  
+  /* Estilo de los mensajes */
+  .register-form-container p {
+    text-align: center;
+    color: #ff4d4d;
+  }
+  
+  /* Estilo responsive */
+  @media (max-width: 600px) {
+    .register-form-container {
+      padding: 15px;
+    }
+  
+    .register-form-container button {
+      font-size: 16px;
+    }
+  
+    .register-form-container input {
+      font-size: 16px;
+    }
+  }
+  
