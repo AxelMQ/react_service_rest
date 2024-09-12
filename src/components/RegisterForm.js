@@ -16,14 +16,41 @@ function RegisterForm() {
   const [transaccionId, setTransaccionId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // Estado para indicar carga
+  const [isOffline, setIsOffline] = useState(!navigator.onLine); // Estado para detectar si estamos offline
+  const offlineRequests = []; // Almacena solicitudes fallidas cuando está offline
 
   const navigate = useNavigate();
 
   useEffect(() => {
     console.log(`API URL: ${process.env.REACT_APP_API_URL}`);
-    // setMessage(`API URL: ${process.env.REACT_APP_API_URL}`)
+    // Detectar cuando la app está online u offline
+    const handleOnline = () => {
+      setIsOffline(false);
+      retryOfflineRequests(); // Intentar reenviar las solicitudes fallidas
+    };
+    
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Limpiar eventos cuando el componente se desmonte
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
+  // Función para reintentar solicitudes cuando vuelve la conexión
+  const retryOfflineRequests = () => {
+    while (offlineRequests.length > 0) {
+      const request = offlineRequests.shift();
+      request();
+    }
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -69,9 +96,10 @@ function RegisterForm() {
       setTransaccionId(result.transaccionId || '');
       setShowErrorModal(false);
 
-    } catch (error) {
-      if (error.message.includes('No pudimos conectar con el servidor')) {
-        setMessage('No pudimos conectar con el servidor después de varios intentos. Por favor, revisa tu conexión a Internet o intenta de nuevo más tarde.');
+    } catch (error)  {
+      if (!navigator.onLine) {
+        offlineRequests.push(() => handleSubmit(event)); // Almacenar la solicitud para reintentar cuando vuelva la conexión
+        setMessage('No tienes conexión a internet. La solicitud se reenviará cuando se recupere.');
       } else if (error.message === 'Failed to fetch') {
         setMessage('Parece que no podemos conectar con el servidor en este momento. Verifica tu conexión o inténtalo de nuevo más tarde.');
       } else if (error.message === 'Request timed out') {
@@ -246,6 +274,14 @@ function RegisterForm() {
         onClick={() => navigate('/users')} 
         styleType="secondary" 
       />
+
+      
+      {isOffline && (
+        <div className="offline-indicator">
+          <p>Estás sin conexión. Las solicitudes se reenviarán cuando vuelva la conexión.</p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         {message && <p>{message}</p>}
         <InputField
