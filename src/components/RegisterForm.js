@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../RegisterForm.css';
 import InputField from './InputField';
@@ -16,15 +16,14 @@ function RegisterForm() {
   const [transaccionId, setTransaccionId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Estado para indicar carga
-  const [isOffline, setIsOffline] = useState(!navigator.onLine); // Estado para detectar si estamos offline
-  const offlineRequests = []; // Almacena solicitudes fallidas cuando está offline
-
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  
+  const offlineRequests = useRef([]); // Usar useRef para persistir entre renderizados
   const navigate = useNavigate();
 
   useEffect(() => {
     console.log(`API URL: ${process.env.REACT_APP_API_URL}`);
-    // Detectar cuando la app está online u offline
+    
     const handleOnline = () => {
       setIsOffline(false);
       retryOfflineRequests(); // Intentar reenviar las solicitudes fallidas
@@ -37,17 +36,16 @@ function RegisterForm() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Limpiar eventos cuando el componente se desmonte
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
-  // Función para reintentar solicitudes cuando vuelve la conexión
   const retryOfflineRequests = () => {
-    while (offlineRequests.length > 0) {
-      const request = offlineRequests.shift();
+    console.log('Reintentando solicitudes...');
+    while (offlineRequests.current.length > 0) {
+      const request = offlineRequests.current.shift();
       request();
     }
   };
@@ -71,7 +69,7 @@ function RegisterForm() {
     };
 
     try {
-      const response = await fetchWithTimeout(`${process.env.REACT_APP_API_URL}/persons/register`, {
+      const response = await fetchWithTimeout(`${process.env.REACT_APP_API_URL}/persons/rest`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -96,9 +94,9 @@ function RegisterForm() {
       setTransaccionId(result.transaccionId || '');
       setShowErrorModal(false);
 
-    } catch (error)  {
+    } catch (error) {
       if (!navigator.onLine) {
-        offlineRequests.push(() => handleSubmit(event)); // Almacenar la solicitud para reintentar cuando vuelva la conexión
+        offlineRequests.current.push(() => handleSubmit(event)); // Almacenar la solicitud para reenviar cuando vuelva la conexión
         setMessage('No tienes conexión a internet. La solicitud se reenviará cuando se recupere.');
       } else if (error.message === 'Failed to fetch') {
         setMessage('Parece que no podemos conectar con el servidor en este momento. Verifica tu conexión o inténtalo de nuevo más tarde.');
@@ -108,72 +106,18 @@ function RegisterForm() {
         setMessage(`Error: ${error.message}`);
       }
       setShowErrorModal(true);
-    }
-     finally {
+    } finally {
       setIsSubmitting(false);
     }
   };
-  
 
-  // const handleSubmit = async (event) => {
-  //   event.preventDefault();
-
-  //   if (!validateForm()) {
-  //     return;
-  //   }
-
-  //   setIsSubmitting(true);
-  //   setMessage('');
-
-  //   const soapRequest = buildSoapRequest(ci, nombre, apellido, sexo);
-  //   console.log(soapRequest);
-  //   try {
-  //     const response = await fetchWithTimeout(`${process.env.REACT_APP_API_URL}/persons/soap`, {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'text/xml',
-  //         // 'SOAPAction': process.env.REACT_APP_SOAP_ACTION_REGISTER_USER,
-  //       },
-  //       body: soapRequest,
-  //     });
-
-  //     if (!response.ok) {
-  //       throw new Error('Error en la respuesta del servidor');
-  //     }
-
-  //     const text = await response.text();
-  //     console.log('Response Text:', text);
-  //     const { message } = parseSoapResponse(text);
-      
-  //     setMessage(message);
-  //     console.log('Response Text:', text);
-  //     console.log('Parsed Response:', { message });
-
-  //     setMessage(message || 'Solicitud procesada');
-  //     console.log('Parsed Response:', { message });
-
-  //   } catch (error) {
-  //     if (error.message === 'Failed to fetch') {
-  //       setMessage('Error: No se pudo conectar con el servidor. Verifica tu conexión.');
-  //     } else if (error.message === 'Tiempo de espera agotado') {
-  //       setMessage('Error: Tiempo de espera agotado al conectar con el servidor.');
-  //     } else {
-  //       setMessage(error.message);
-  //     } 
-  //   } finally {
-  //     setIsSubmitting(false); 
-  //   }
-  // };
-  
   const handleCiChange = (e) => {
     const value = e.target.value;
   
-    // Permitir solo números
     if (/^\d*$/.test(value)) {
       setCi(value);
-      setMessage(''); // Limpia el mensaje de error si es un número válido
+      setMessage('');
   
-      // Validar la longitud al instante
       if (value.length < 6 || value.length > 12) {
         setMessage("El CI debe tener entre 6 y 12 dígitos.");
       } else {
@@ -206,66 +150,23 @@ function RegisterForm() {
       try {
         const response = await fetch(url, { ...options, signal: controller.signal });
         clearTimeout(timeoutId);
-        return response; // Si la solicitud es exitosa, la retornamos.
+        return response;
   
       } catch (error) {
         clearTimeout(timeoutId);
   
         if (error.name === 'AbortError' || error.message === 'Failed to fetch') {
-          // Si es el último intento, lanzamos el error.
           if (attempt === retries) {
             throw new Error(' - No pudimos conectar con el servidor después de varios intentos. Por favor, inténtalo de nuevo más tarde.');
           }          
-          // Si no, intentamos nuevamente.
           console.log(`Intento ${attempt} fallido, reintentando...`);
         } else {
-          // Otros errores se lanzan inmediatamente.
           throw error;
         }
       }
     }
   };
-  
 
-  const parseSoapResponse = (responseText) => {
-    var parser = new DOMParser();
-    var xmlDoc = parser.parseFromString(responseText, 'text/xml');
-    var messageElement = xmlDoc.getElementsByTagNameNS('http://example.com/', 'message')[0]?.textContent;
-  
-    var message = messageElement ? messageElement : 'No se recibió mensaje';
-    return { message };
-  };
-
-  const escapeXml = (str) => {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  };
-
-  const buildSoapRequest = (ci, nombre, apellido, sexo) => {
-    const escapedCi = escapeXml(ci);
-    const escapedNombre = escapeXml(nombre);
-    const escapedApellido = escapeXml(apellido);
-    const escapedSexo = escapeXml(sexo);
-    const namespace = process.env.REACT_APP_SOAP_NAMESPACE;
-
-
-    return `<?xml version="1.0" encoding="UTF-8"?>
-    <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ex="http://example.com/">
-        <soapenv:Header/>
-        <soapenv:Body>
-            <ex:AddUserRequest>
-                <ex:ci>${escapedCi}</ex:ci>
-                <ex:nombre>${escapedNombre}</ex:nombre>
-                <ex:apellido>${escapedApellido}</ex:apellido>
-                <ex:sexo>${escapedSexo}</ex:sexo>
-            </ex:AddUserRequest>
-        </soapenv:Body>
-    </soapenv:Envelope>`;
-};
   return (
     <div className="register-form-container">
       <h2>Formulario de Registro</h2>
@@ -275,7 +176,6 @@ function RegisterForm() {
         styleType="secondary" 
       />
 
-      
       {isOffline && (
         <div className="offline-indicator">
           <p>Estás sin conexión. Las solicitudes se reenviarán cuando vuelva la conexión.</p>

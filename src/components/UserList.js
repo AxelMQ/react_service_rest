@@ -55,7 +55,7 @@ function UserList() {
       };
 
       // Realizar la solicitud GET a la API REST
-      const response = await fetchWithTimeout(`${process.env.REACT_APP_API_URL}/persons`, {
+      const response = await fetchWithTimeout(`${process.env.REACT_APP_API_URL}/persons/get-datos`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
